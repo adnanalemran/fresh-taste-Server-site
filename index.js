@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const dotenv = require('dotenv'); // Import dotenv
+const express = require("express");
+const cors = require("cors");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const dotenv = require("dotenv"); // Import dotenv
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -12,31 +12,59 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fhwdeyh.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    },
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
 });
 
 async function run() {
-    try {
-        // await client.connect();
-        const productCollection = client.db("productDB").collection("products");
-        const userCollection = client.db("productDB").collection("user");
-        const productCartCollection = client.db("productDB").collection("cart");
-        
+  try {
+    // await client.connect();
 
-        // await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // Ensures that the client will close when you finish/error
-        // await client.close();
-        //we are no end
-    }
+    const userCollection = client.db("FreshTasteDB").collection("user");
+    //User api
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      try {
+        const result = await userCollection.insertOne(user);
+        console.log("Inserted document with _id: " + result.insertedId);
+        res.status(201).json({ message: "User added successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ error: "Failed to insert data into the database" });
+      }
+    });
+
+    app.get("/user", async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+    // single user
+    app.get("/user/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
+    // await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
+  } finally {
+    // Ensures that the client will close when you finish/error
+    // await client.close();
+    //we are no end
+  }
 }
 
 run().catch(console.dir);
@@ -45,9 +73,9 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-    res.send("Crud is running...");
+  res.send("Crud is running...");
 });
 
 app.listen(port, () => {
-    console.log(`Simple Crud is Running on port ${port}`);
+  console.log(`SERVER is Running on port ${port}`);
 });
