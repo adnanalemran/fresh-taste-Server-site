@@ -24,8 +24,8 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // await client.connect();
-
     const userCollection = client.db("FreshTasteDB").collection("user");
+    const foodCollection = client.db("FreshTasteDB").collection("food");
     //User api
     app.post("/user", async (req, res) => {
       const user = req.body;
@@ -53,6 +53,25 @@ async function run() {
         _id: new ObjectId(id),
       };
       const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
+    //food api
+    app.post("/food", async (req, res) => {
+      const product = req.body;
+      try {
+        const result = await foodCollection.insertOne(product);
+        console.log("Inserted document with _id: " + result.insertedId);
+        res.status(201).json({ message: "Product added successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ error: "Failed to insert data into the database" });
+      }
+    });
+    app.get("/food", async (req, res) => {
+      const result = await foodCollection.find().toArray();
       res.send(result);
     });
 
