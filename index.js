@@ -26,6 +26,7 @@ async function run() {
     // await client.connect();
     const userCollection = client.db("FreshTasteDB").collection("user");
     const foodCollection = client.db("FreshTasteDB").collection("food");
+    const foodBuyCollection = client.db("FreshTasteDB").collection("buy");
     //User api
     app.post("/user", async (req, res) => {
       const user = req.body;
@@ -70,8 +71,61 @@ async function run() {
           .json({ error: "Failed to insert data into the database" });
       }
     });
+
     app.get("/food", async (req, res) => {
       const result = await foodCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/food/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await foodCollection.findOne(query);
+      res.send(result);
+    });
+  
+    app.get("/filtered-foods", async (req, res) => {
+      const { email } = req.query;
+      try {
+        const filteredFoods = await foodBuyCollection.find({ email }).toArray();
+        res.json(filteredFoods);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch and filter data" });
+      }
+    });
+    
+    app.get("/filtered-added-foods", async (req, res) => {
+      const { email } = req.query; 
+      try {
+        const filteredFoods = await foodCollection.find({ email }).toArray();
+        res.json(filteredFoods);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch and filter data" });
+      }
+    });
+
+    // buy api
+    app.post("/buy", async (req, res) => {
+      const product = req.body;
+      console.log(product);
+      try {
+        const result = await foodBuyCollection.insertOne(product);
+        console.log("Inserted document with _id: " + result.insertedId);
+        res.status(201).json({ message: "Product added successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ error: "Failed to insert data into the database" });
+      }
+    });
+
+    app.get("/buy", async (req, res) => {
+      const result = await foodBuyCollection.find().toArray();
       res.send(result);
     });
 
