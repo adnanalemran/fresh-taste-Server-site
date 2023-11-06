@@ -72,8 +72,20 @@ async function run() {
       }
     });
 
+    app.get("/foodCount", async (req, res) => {
+      const count = await foodCollection.estimatedDocumentCount();
+      res.send({ count });
+    });
     app.get("/food", async (req, res) => {
-      const result = await foodCollection.find().toArray();
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      console.log("pagination quary:", page, size);
+
+      const result = await foodCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(result);
     });
 
