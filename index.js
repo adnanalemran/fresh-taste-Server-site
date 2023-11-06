@@ -1,16 +1,23 @@
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const dotenv = require("dotenv"); // Import dotenv
-
-dotenv.config(); // Load environment variables from .env file
+const dotenv = require("dotenv");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:5174"], //if deploy replace
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fhwdeyh.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
@@ -21,12 +28,43 @@ const client = new MongoClient(uri, {
   },
 });
 
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     // await client.connect();
     const userCollection = client.db("FreshTasteDB").collection("user");
     const foodCollection = client.db("FreshTasteDB").collection("food");
     const foodBuyCollection = client.db("FreshTasteDB").collection("buy");
+    //aurh releted api
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true, //replace deploy true
+
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
     //User api
     app.post("/user", async (req, res) => {
       const user = req.body;
@@ -68,7 +106,7 @@ async function run() {
         console.error(error);
         res
           .status(500)
-          .json({ error: "Failed to insert data into the database" });
+          .json({ error: "Failed to insert data into the da tabase" });
       }
     });
 
@@ -133,18 +171,20 @@ async function run() {
       }
     });
 
-    app.get("/filtered-foods", async (req, res) => {
+    app.get("/filtered-foods", verifyToken, async (req, res) => {
+      console.log("token:", req.cookies.token);
       const { email } = req.query;
       try {
         const filteredFoods = await foodBuyCollection.find({ email }).toArray();
         res.json(filteredFoods);
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Failed to fetch and filter data" });
+        res.status(500).json({ error: "Fai led to fetch and filter data" });
       }
     });
 
-    app.get("/filtered-added-foods", async (req, res) => {
+    app.get("/filtered-added-foods", verifyToken, async (req, res) => {
+      console.log("token:", req.cookies.token);
       const { email } = req.query;
       try {
         const filteredFoods = await foodCollection.find({ email }).toArray();
@@ -210,9 +250,6 @@ async function run() {
 }
 
 run().catch(console.dir);
-
-app.use(cors());
-app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Crud is running...");
