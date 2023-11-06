@@ -85,7 +85,42 @@ async function run() {
       const result = await foodCollection.findOne(query);
       res.send(result);
     });
-  
+
+    app.put("/food/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+
+      console.log("id", id, data);
+
+      const filter = { _id: new ObjectId(id) };
+      const updatedProduct = {
+        $set: {
+          name: data.name,
+          image: data.image,
+          Category: data.Category,
+          Quantity: data.Quantity,
+          chiefNames: data.chiefNames,
+          foodOrigin: data.foodOrigin,
+          price: data.price,
+          orderCount: data.orderCount,
+          foodOrigin: data.foodOrigin,
+          shortDescription: data.shortDescription,
+        },
+      };
+
+      try {
+        const result = await foodCollection.updateOne(filter, updatedProduct);
+        if (result.modifiedCount === 1) {
+          res.json({ message: "Product updated successfully" });
+        } else {
+          res.status(404).json({ error: "Product not found" });
+        }
+      } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
     app.get("/filtered-foods", async (req, res) => {
       const { email } = req.query;
       try {
@@ -96,9 +131,9 @@ async function run() {
         res.status(500).json({ error: "Failed to fetch and filter data" });
       }
     });
-    
+
     app.get("/filtered-added-foods", async (req, res) => {
-      const { email } = req.query; 
+      const { email } = req.query;
       try {
         const filteredFoods = await foodCollection.find({ email }).toArray();
         res.json(filteredFoods);
@@ -106,6 +141,17 @@ async function run() {
         console.error(error);
         res.status(500).json({ error: "Failed to fetch and filter data" });
       }
+    });
+
+    app.delete("/food/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log("delete", id);
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await foodCollection.deleteOne(query);
+      console.log(result);
+      res.send(result);
     });
 
     // buy api
@@ -126,6 +172,17 @@ async function run() {
 
     app.get("/buy", async (req, res) => {
       const result = await foodBuyCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/buy/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log("delete", id);
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await foodBuyCollection.deleteOne(query);
+      console.log(result);
       res.send(result);
     });
 
