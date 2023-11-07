@@ -127,6 +127,18 @@ async function run() {
       res.send(result);
     });
 
+
+    app.get("/food/top6", async (req, res) => {
+      try {
+        const result = await foodCollection.find().sort({ orderCount: -1 }).limit(6).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch and sort data" });
+      }
+    });
+
+
     app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
       const query = {
