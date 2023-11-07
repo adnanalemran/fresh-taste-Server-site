@@ -48,10 +48,11 @@ async function run() {
     const userCollection = client.db("FreshTasteDB").collection("user");
     const foodCollection = client.db("FreshTasteDB").collection("food");
     const foodBuyCollection = client.db("FreshTasteDB").collection("buy");
+
     //aurh releted api
     app.post("/jwt", (req, res) => {
       const user = req.body;
-      console.log(user);
+
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
@@ -68,10 +69,10 @@ async function run() {
     //User api
     app.post("/user", async (req, res) => {
       const user = req.body;
-      console.log(user);
+
       try {
         const result = await userCollection.insertOne(user);
-        console.log("Inserted document with _id: " + result.insertedId);
+
         res.status(201).json({ message: "User added successfully" });
       } catch (error) {
         console.error(error);
@@ -85,11 +86,11 @@ async function run() {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
-    // single user
-    app.get("/user/:id", async (req, res) => {
-      const id = req.params.id;
+    // Single user by uid
+    app.get("/user/:uid", async (req, res) => {
+      const uid = req.params.uid;
       const query = {
-        _id: new ObjectId(id),
+        uid: uid, // Assuming "uid" is the field in your database
       };
       const result = await userCollection.findOne(query);
       res.send(result);
@@ -100,7 +101,7 @@ async function run() {
       const product = req.body;
       try {
         const result = await foodCollection.insertOne(product);
-        console.log("Inserted document with _id: " + result.insertedId);
+
         res.status(201).json({ message: "Product added successfully" });
       } catch (error) {
         console.error(error);
@@ -117,7 +118,6 @@ async function run() {
     app.get("/food", async (req, res) => {
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
-      console.log("pagination quary:", page, size);
 
       const result = await foodCollection
         .find()
@@ -127,10 +127,13 @@ async function run() {
       res.send(result);
     });
 
-
     app.get("/food/top6", async (req, res) => {
       try {
-        const result = await foodCollection.find().sort({ orderCount: -1 }).limit(6).toArray();
+        const result = await foodCollection
+          .find()
+          .sort({ orderCount: -1 })
+          .limit(6)
+          .toArray();
         res.send(result);
       } catch (error) {
         console.error(error);
@@ -138,13 +141,77 @@ async function run() {
       }
     });
 
-
     app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
       const query = {
         _id: new ObjectId(id),
       };
       const result = await foodCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/filtered-foods", verifyToken, async (req, res) => {
+      const { email } = req.query;
+      try {
+        const filteredFoods = await foodBuyCollection.find({ email }).toArray();
+        res.json(filteredFoods);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Fai led to fetch and filter data" });
+      }
+    });
+
+    app.get("/filtered-added-foods", verifyToken, async (req, res) => {
+      const { email } = req.query;
+      try {
+        const filteredFoods = await foodCollection.find({ email }).toArray();
+        res.json(filteredFoods);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to fetch and filter data" });
+      }
+    });
+
+    app.delete("/food/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await foodCollection.deleteOne(query);
+
+      res.send(result);
+    });
+
+    // buy api
+    app.post("/buy", async (req, res) => {
+      const product = req.body;
+
+      try {
+        const result = await foodBuyCollection.insertOne(product);
+
+        res.status(201).json({ message: "Product added successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .json({ error: "Failed to insert data into the database" });
+      }
+    });
+
+    app.get("/buy", async (req, res) => {
+      const result = await foodBuyCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.delete("/buy/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await foodBuyCollection.deleteOne(query);
+
       res.send(result);
     });
 
@@ -183,71 +250,39 @@ async function run() {
       }
     });
 
-    app.get("/filtered-foods", verifyToken, async (req, res) => {
-      console.log("token:", req.cookies.token);
-      const { email } = req.query;
+    app.put("/user/update/:uid", async (req, res) => {
+      const uid = req.params.uid;
+      const userData = req.body;
+
+      // Update the user profile UID
       try {
-        const filteredFoods = await foodBuyCollection.find({ email }).toArray();
-        res.json(filteredFoods);
+        const filter = { uid };
+        const update = { $set: userData };
+
+        const result = await userCollection.updateOne(filter, update);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "User profile updated successfully" });
       } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Fai led to fetch and filter data" });
+        console.error("Error updating user profile:", error);
+        res.status(500).json({ error: "Internal server error" });
       }
     });
 
-    app.get("/filtered-added-foods", verifyToken, async (req, res) => {
-      console.log("token:", req.cookies.token);
-      const { email } = req.query;
+    app.get("/food/search", async (req, res) => {
       try {
-        const filteredFoods = await foodCollection.find({ email }).toArray();
-        res.json(filteredFoods);
+        const { search } = req.query;
+        const searchResults = await foodCollection
+          .find({ name: { $regex: search, $options: "i" } })
+          .toArray();
+        res.json(searchResults);
       } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to fetch and filter data" });
+        console.error("Error searching for food items:", error);
+        res.status(500).json({ error: "Internal server error" });
       }
-    });
-
-    app.delete("/food/:id", async (req, res) => {
-      const id = req.params.id;
-      console.log("delete", id);
-      const query = {
-        _id: new ObjectId(id),
-      };
-      const result = await foodCollection.deleteOne(query);
-      console.log(result);
-      res.send(result);
-    });
-
-    // buy api
-    app.post("/buy", async (req, res) => {
-      const product = req.body;
-      console.log(product);
-      try {
-        const result = await foodBuyCollection.insertOne(product);
-        console.log("Inserted document with _id: " + result.insertedId);
-        res.status(201).json({ message: "Product added successfully" });
-      } catch (error) {
-        console.error(error);
-        res
-          .status(500)
-          .json({ error: "Failed to insert data into the database" });
-      }
-    });
-
-    app.get("/buy", async (req, res) => {
-      const result = await foodBuyCollection.find().toArray();
-      res.send(result);
-    });
-
-    app.delete("/buy/:id", async (req, res) => {
-      const id = req.params.id;
-      console.log("delete", id);
-      const query = {
-        _id: new ObjectId(id),
-      };
-      const result = await foodBuyCollection.deleteOne(query);
-      console.log(result);
-      res.send(result);
     });
 
     // await client.db("admin").command({ ping: 1 });
