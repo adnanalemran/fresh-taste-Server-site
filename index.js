@@ -15,6 +15,7 @@ app.use(
     origin: [
       "https://fresh-taste.web.app",
       "https://fresh-taste.firebaseapp.com",
+      "http://localhost:5173",
     ], //if deploy replace
     credentials: true,
   })
@@ -275,11 +276,13 @@ async function run() {
       }
     });
 
-    app.get("/food/search", async (req, res) => {
+    app.get("/food/search/:text", async (req, res) => {
+      const text = req.params.text;
+      console.log(text);
+
       try {
-        const { search } = req.query;
         const searchResults = await foodCollection
-          .find({ name: { $regex: search, $options: "i" } })
+          .find({ name: { $regex: text, $options: "i" } })
           .toArray();
         res.json(searchResults);
       } catch (error) {
